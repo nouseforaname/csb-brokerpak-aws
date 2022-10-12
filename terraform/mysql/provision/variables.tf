@@ -51,3 +51,16 @@ variable "monitoring_role_arn" { type = string }
 variable "performance_insights_enabled" { type = bool }
 variable "performance_insights_kms_key_id" { type = string }
 variable "performance_insights_retention_period" { type = number }
+variable "cloudwatch_log_exports_enabled" {
+  type        = list(any)
+  default     = []
+  description = "[alert, audit, error, general, listener, slowquery, trace]"
+}
+variable "cloudwatch_log_group_retention_in_days" {
+  type    = number
+  default = 90
+}
+variable "cloudwatch_log_group_kms_key_id" {
+  type        = string
+  description = "arn:<partition>:kms:<region>:<account-id>:key/<key-id>"
+}

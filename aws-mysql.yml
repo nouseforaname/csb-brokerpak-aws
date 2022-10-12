@@ -96,7 +96,7 @@ provision:
   - field_name: use_tls
     type: boolean
     details: Use TLS for connection
-    default: true 
+    default: true
   - field_name: storage_autoscale
     type: boolean
     default: false
@@ -177,7 +177,7 @@ provision:
   - field_name: rds_vpc_security_group_ids
     type: string
     details: Comma delimited list of security group ID's for instance
-    default: ""    
+    default: ""
   - field_name: allow_major_version_upgrade
     type: boolean
     details: Allow major version upgrades. Changing this parameter does not result in an outage and the change is asynchronously applied as soon as possible.
@@ -291,6 +291,22 @@ provision:
       This property represents the ARN for the IAM role that permits RDS to send enhanced monitoring metrics to CloudWatch Logs.
       To read about setting up and enabling Enhanced Monitoring see https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Monitoring.OS.Enabling.html.
     default: ""
+  - field_name: cloudwatch_log_exports_enabled
+    default: []
+    details: |
+      List of logs to forward to Cloudwatch Logs. e.g. `[alert, audit, error, general, listener, slowquery, trace]`
+      Will trigger creation of option and/or param group resources that will be applied to the RDS instance.
+      If used with `parameter_group_name` or `option_group_name` no automatic option/param group will be created and the broker will use the specified resource.
+      Some log exports (e.g. audit, slowquery) require enabled parameters or options to be specified in the attached option / param groups.
+      Refer to AWS Documentation to ensure the right setup: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_LogAccess.Concepts.MySQL.html
+  - field_name: cloudwatch_log_group_retention_in_days
+    default: 90
+    details: |
+      Retention for forwarded logs in Cloudwatch.
+  - field_name: cloudwatch_log_group_kms_key_id
+    default: ""
+    details: |
+      KMS Key used to encrypt stored logs in Cloudwatch.
   - field_name: performance_insights_enabled
     type: boolean
     details: Specifies whether Performance Insights are enabled (see https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_PerfInsights.Overview.html).
@@ -349,7 +365,7 @@ provision:
     details: The password to authenticate to the database instance.
   - field_name: use_tls
     type: boolean
-    details: Using TLS for connection        
+    details: Using TLS for connection
 bind:
   plan_inputs: []
   user_inputs: []
@@ -373,7 +389,7 @@ bind:
     - name: use_tls
       type: boolean
       default: ${instance.details["use_tls"]}
-      overwrite: true        
+      overwrite: true
   template_refs:
     outputs: terraform/mysql/bind/outputs.tf
     provider: terraform/mysql/bind/provider.tf

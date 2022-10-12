@@ -84,7 +84,127 @@ resource "aws_db_instance" "db_instance" {
   performance_insights_kms_key_id       = var.performance_insights_kms_key_id == "" ? null : var.performance_insights_kms_key_id
   performance_insights_retention_period = var.performance_insights_enabled ? var.performance_insights_retention_period : null
 
+  enabled_cloudwatch_logs_exports = var.cloudwatch_log_exports_enabled
+
   lifecycle {
     prevent_destroy = true
   }
+  # The log groups will need to be created first directly via TF so it can manage them, if the instance has enabled log exports the instance creation will default to implicitly creating the log group. If that happens, we cannot manage the retention days // kms key for the log group.
+  depends_on = [aws_cloudwatch_log_group.this]
+}
+
+# Conditional Resource Cloudwatch Log Group
+locals {
+  param_lookup = {
+    slowlog : {
+      key : "slow_query_log",
+      value : "1"
+    },
+    general : {
+      key : "general_log",
+      value : "1"
+    }
+  }
+  option_lookup = {
+    audit : {
+      key : "MARIADB_AUDIT_PLUGIN",
+      values : [
+        {
+          name  = "SERVER_AUDIT_FILE_ROTATIONS"
+          value = "15" # Allowed Values 0-100
+        },
+        {
+          name  = "SERVER_AUDIT_FILE_ROTATE_SIZE"
+          value = "52428800" # Allowed Values: 1-1000000000
+        },
+        #       {
+        #         name = "SERVER_AUDIT_QUERY_LOG_LIMIT"
+        #         value = "1024" # Allowed Values: 0-2147483647 // Limit on the length of the query string in a record.
+        #       }
+        #       {
+        #         name =  "SERVER_AUDIT_INCL_USERS" #csv, included usernames
+        #         value = ""
+        #       },
+        #       {
+        #         name =  "SERVER_AUDIT_EXCL_USERS" #csv, excluded usernames
+        #         value = ""
+        #       },
+        #       {
+        #         name = "SERVER_AUDIT_QUERY_LOG_LIMIT" #
+        #         value = "1024"
+        #       },
+        #       {
+        #         name = "SERVER_AUDIT_EVENTS"
+        #         value = "CONNECT,QUERY" # Allowed Vals: CONNECT, QUERY, QUERY_DDL, QUERY_DML, QUERY_DCL, QUERY_DML_NO_SELECT
+        #       }
+      ]
+    }
+  }
+
+  cloud_watch_log_params = [
+    for index in var.cloudwatch_log_exports_enabled : lookup(local.param_lookup, index, {})
+  ]
+  all_params = {
+    for s in local.cloud_watch_log_params : s.key => s.value if s != {}
+  }
+  cloud_watch_log_options = [
+    for index in var.cloudwatch_log_exports_enabled : lookup(local.option_lookup, index, {})
+  ]
+  all_options = {
+    for s in local.cloud_watch_log_options : s.key => s.values if s != {}
+  }
+}
+resource "aws_db_option_group" "db_option_group" {
+  lifecycle {
+    create_before_destroy = true
+  }
+  count = length(var.option_group_name) == 0 ? length(local.all_options) : 0
+
+  name_prefix          = format("rds-mysql-%s", var.instance_name)
+  engine_name          = var.engine
+  major_engine_version = var.engine_version
+
+  dynamic "option" {
+    for_each = local.all_options
+    content {
+      option_name = option.key
+
+      dynamic "option_settings" {
+        for_each = { for s in option.value : s.name => s.value }
+
+        content {
+          name  = option_settings.key
+          value = option_settings.value
+        }
+      }
+    }
+  }
+  tags = var.labels
+}
+resource "aws_db_parameter_group" "db_parameter_group" {
+  count = length(var.parameter_group_name) == 0 ? length(local.all_params) : 0
+
+  name_prefix = format("rds-mysql-%s", var.instance_name)
+  family      = format("%s%s", var.engine, var.engine_version)
+
+  dynamic "parameter" {
+    for_each = local.all_params
+    content {
+      name  = parameter.key
+      value = parameter.value
+    }
+  }
+  tags = var.labels
+}
+
+# Conditional Resource Cloudwatch Log Group
+resource "aws_cloudwatch_log_group" "this" {
+  for_each = toset(var.cloudwatch_log_exports_enabled)
+
+  name              = "/aws/rds/instance/${var.instance_name}/${each.value}"
+  retention_in_days = 1 #var.cloudwatch_log_group_retention_in_days
+  kms_key_id        = var.cloudwatch_log_group_kms_key_id
+
+  tags = var.labels
+
 }
