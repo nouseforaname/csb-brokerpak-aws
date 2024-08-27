@@ -9,3 +9,6 @@ custom.tfrc
 integration-tests/integration-tests.test
 acceptance-tests/acceptance-tests.test
 terraform-tests/terraform-tests.test
+acceptance-tests/upgrade/vars*.yml
+acceptance-tests/assets/vars.yml
+

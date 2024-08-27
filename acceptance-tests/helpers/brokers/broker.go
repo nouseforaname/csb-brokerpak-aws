@@ -1,14 +1,20 @@
 // Package brokers manages service brokers
 package brokers
 
-import "csbbrokerpakaws/acceptance-tests/helpers/apps"
+import (
+	"csbbrokerpakaws/acceptance-tests/helpers/apps"
+	"csbbrokerpakaws/acceptance-tests/helpers/deployments"
+)
 
 type Broker struct {
-	Name      string
-	username  string
-	password  string
-	secrets   []EncryptionSecret
-	dir       string
-	envExtras []apps.EnvVar
-	app       *apps.App
+	app            *apps.App
+	depl           *deployments.Deployment
+	Name           string
+	username       string
+	password       string
+	dir            string
+	boshReleaseDir string
+	secrets        []EncryptionSecret
+	envExtras      []apps.EnvVar
+	isVmBased      bool
 }
